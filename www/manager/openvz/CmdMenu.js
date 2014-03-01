@@ -50,10 +50,31 @@ Ext.define('PVE.openvz.CmdMenu', {
 		}
 	    },
 	    {
+		text: gettext('Suspend'),
+		icon: '/pve2/images/forward.png',
+		handler: function() {
+		    var msg = Ext.String.format(gettext("Do you really want to suspend CT {0}?"), vmid);
+		    Ext.Msg.confirm(gettext('Confirm'), msg, function(btn) {
+			if (btn !== 'yes') {
+			    return;
+			}
+
+			vm_command('suspend');
+		    });
+		}
+	    },
+	    {
+		text: gettext('Resume'),
+		icon: '/pve2/images/forward.png',
+		handler: function() {
+			vm_command('resume');
+		}
+	    },
+	    {
 		text: gettext('Shutdown'),
 		icon: '/pve2/images/stop.png',
 		handler: function() {
-		    var msg = Ext.String.format(gettext("Do you really want to shutdown VM {0}?"), vmid);
+		    var msg = Ext.String.format(gettext("Do you really want to shutdown CT {0}?"), vmid);
 		    Ext.Msg.confirm(gettext('Confirm'), msg, function(btn) {
 			if (btn !== 'yes') {
 			    return;
@@ -61,13 +82,13 @@ Ext.define('PVE.openvz.CmdMenu', {
 
 			vm_command('shutdown');
 		    });
-		}			    
+		}
 	    },
 	    {
 		text: gettext('Stop'),
 		icon: '/pve2/images/gtk-stop.png',
 		handler: function() {
-		    var msg = Ext.String.format(gettext("Do you really want to stop VM {0}?"), vmid);
+		    var msg = Ext.String.format(gettext("Do you really want to stop CT {0}?"), vmid);
 		    Ext.Msg.confirm(gettext('Confirm'), msg, function(btn) {
 			if (btn !== 'yes') {
 			    return;

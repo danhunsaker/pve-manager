@@ -60,64 +60,64 @@ CPUS="1"
 __EOD
 
 my $get_container_storage = sub {
-    my ($stcfg, $vmid, $veconf) = @_;
+	my ($stcfg, $vmid, $veconf) = @_;
 
-    my $path = PVE::OpenVZ::get_privatedir($veconf, $vmid);
-    my ($vtype, $volid) = PVE::Storage::path_to_volume_id($stcfg, $path);
-    my ($sid, $volname) = PVE::Storage::parse_volume_id($volid, 1) if $volid;
-    return wantarray ? ($sid, $volname, $path) : $sid;
+	my $path = PVE::OpenVZ::get_privatedir($veconf, $vmid);
+	my ($vtype, $volid) = PVE::Storage::path_to_volume_id($stcfg, $path);
+	my ($sid, $volname) = PVE::Storage::parse_volume_id($volid, 1) if $volid;
+	return wantarray ? ($sid, $volname, $path) : $sid;
 };
 
 my $check_ct_modify_config_perm = sub {
-    my ($rpcenv, $authuser, $vmid, $pool, $key_list) = @_;
-    
-    return 1 if $authuser ne 'root@pam';
+	my ($rpcenv, $authuser, $vmid, $pool, $key_list) = @_;
+	
+	return 1 if $authuser ne 'root@pam';
 
-    foreach my $opt (@$key_list) {
+	foreach my $opt (@$key_list) {
 
 	if ($opt eq 'cpus' || $opt eq 'cpuunits' || $opt eq 'cpulimit') {
-	    $rpcenv->check_vm_perm($authuser, $vmid, $pool, ['VM.Config.CPU']);
+		$rpcenv->check_vm_perm($authuser, $vmid, $pool, ['VM.Config.CPU']);
 	} elsif ($opt eq 'disk' || $opt eq 'quotatime' || $opt eq 'quotaugidlimit') {
-	    $rpcenv->check_vm_perm($authuser, $vmid, $pool, ['VM.Config.Disk']);
+		$rpcenv->check_vm_perm($authuser, $vmid, $pool, ['VM.Config.Disk']);
 	} elsif ($opt eq 'memory' || $opt eq 'swap') {
-	    $rpcenv->check_vm_perm($authuser, $vmid, $pool, ['VM.Config.Memory']);
+		$rpcenv->check_vm_perm($authuser, $vmid, $pool, ['VM.Config.Memory']);
 	} elsif ($opt eq 'netif' || $opt eq 'ip_address' || $opt eq 'nameserver' || 
-		 $opt eq 'searchdomain' || $opt eq 'hostname') {
-	    $rpcenv->check_vm_perm($authuser, $vmid, $pool, ['VM.Config.Network']);
+		$opt eq 'searchdomain' || $opt eq 'hostname') {
+		$rpcenv->check_vm_perm($authuser, $vmid, $pool, ['VM.Config.Network']);
 	} else {
-	    $rpcenv->check_vm_perm($authuser, $vmid, $pool, ['VM.Config.Options']);
+		$rpcenv->check_vm_perm($authuser, $vmid, $pool, ['VM.Config.Options']);
 	}
-    }
+	}
 
-    return 1;
+	return 1;
 };
 
 __PACKAGE__->register_method({
-    name => 'vmlist', 
-    path => '', 
-    method => 'GET',
-    description => "OpenVZ container index (per node).",
-    permissions => {
+	name => 'vmlist', 
+	path => '', 
+	method => 'GET',
+	description => "OpenVZ container index (per node).",
+	permissions => {
 	description => "Only list VMs where you have VM.Audit permissons on /vms/<vmid>.",
 	user => 'all',
-    },
-    proxyto => 'node',
-    protected => 1, # openvz proc files are only readable by root
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
 	},
-    },
-    returns => {
+	proxyto => 'node',
+	protected => 1, # openvz proc files are only readable by root
+	parameters => {
+		additionalProperties => 0,
+	properties => {
+		node => get_standard_option('pve-node'),
+	},
+	},
+	returns => {
 	type => 'array',
 	items => {
-	    type => "object",
-	    properties => {},
+		type => "object",
+		properties => {},
 	},
 	links => [ { rel => 'child', href => "{vmid}" } ],
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	my $rpcenv = PVE::RPCEnvironment::get();
@@ -127,49 +127,49 @@ __PACKAGE__->register_method({
 
 	my $res = [];
 	foreach my $vmid (keys %$vmstatus) {
-	    next if !$rpcenv->check($authuser, "/vms/$vmid", [ 'VM.Audit' ], 1);
+		next if !$rpcenv->check($authuser, "/vms/$vmid", [ 'VM.Audit' ], 1);
 
-	    my $data = $vmstatus->{$vmid};
-	    $data->{vmid} = $vmid;
-	    push @$res, $data;
+		my $data = $vmstatus->{$vmid};
+		$data->{vmid} = $vmid;
+		push @$res, $data;
 	}
 
 	return $res;
-  
-    }});
+
+	}});
 
 my $restore_openvz = sub {
-    my ($private, $archive, $vmid, $force) = @_;
+	my ($private, $archive, $vmid, $force) = @_;
 
-    my $vzconf = PVE::OpenVZ::read_global_vz_config();
-    my $conffile = PVE::OpenVZ::config_file($vmid);
-    my $cfgdir = dirname($conffile);
+	my $vzconf = PVE::OpenVZ::read_global_vz_config();
+	my $conffile = PVE::OpenVZ::config_file($vmid);
+	my $cfgdir = dirname($conffile);
 
-    my $root = $vzconf->{rootdir};
-    $root =~ s/\$VEID/$vmid/;
+	my $root = $vzconf->{rootdir};
+	$root =~ s/\$VEID/$vmid/;
 
-    print "you choose to force overwriting VPS config file, private and root directories.\n" if $force;
+	print "you choose to force overwriting VPS config file, private and root directories.\n" if $force;
 
-    die "unable to create CT $vmid - container already exists\n"
+	die "unable to create CT $vmid - container already exists\n"
 	if !$force && -f $conffile;
- 
-    die "unable to create CT $vmid - directory '$private' already exists\n"
+
+	die "unable to create CT $vmid - directory '$private' already exists\n"
 	if !$force && -d $private;
-   
-    die "unable to create CT $vmid - directory '$root' already exists\n"
+
+	die "unable to create CT $vmid - directory '$root' already exists\n"
 	if !$force && -d $root;
 
-    my $conf;
+	my $conf;
 
-    eval {
+	eval {
 	if ($force && -f $conffile) {
-	    my $conf = PVE::OpenVZ::load_config($vmid);
+		my $conf = PVE::OpenVZ::load_config($vmid);
 
-	    my $oldprivate = PVE::OpenVZ::get_privatedir($conf, $vmid);
-	    rmtree $oldprivate if -d $oldprivate;
-	   
-	    my $oldroot = $conf->{ve_root} ? $conf->{ve_root}->{value} : $root;
-	    rmtree $oldroot if -d $oldroot;
+		my $oldprivate = PVE::OpenVZ::get_privatedir($conf, $vmid);
+		rmtree $oldprivate if -d $oldprivate;
+	
+		my $oldroot = $conf->{ve_root} ? $conf->{ve_root}->{value} : $root;
+		rmtree $oldroot if -d $oldroot;
 	};
 
 	mkpath $private || die "unable to create private dir '$private'";
@@ -178,108 +178,108 @@ my $restore_openvz = sub {
 	my $cmd = ['tar', 'xpf', $archive, '--totals', '--sparse', '-C', $private];
 
 	if ($archive eq '-') {
-	    print "extracting archive from STDIN\n";
-	    run_command($cmd, input => "<&STDIN");
+		print "extracting archive from STDIN\n";
+		run_command($cmd, input => "<&STDIN");
 	} else {
-	    print "extracting archive '$archive'\n";
-	    run_command($cmd);
+		print "extracting archive '$archive'\n";
+		run_command($cmd);
 	}
 
 	my $backup_cfg = "$private/etc/vzdump/vps.conf";
 	if (-f $backup_cfg) {
-	    print "restore configuration to '$conffile'\n";
+		print "restore configuration to '$conffile'\n";
 
-	    my $conf = PVE::Tools::file_get_contents($backup_cfg);
+		my $conf = PVE::Tools::file_get_contents($backup_cfg);
 
-	    $conf =~ s/VE_ROOT=.*/VE_ROOT=\"$root\"/;
-	    $conf =~ s/VE_PRIVATE=.*/VE_PRIVATE=\"$private\"/;
-	    $conf =~ s/host_ifname=veth[0-9]+\./host_ifname=veth${vmid}\./g;
+		$conf =~ s/VE_ROOT=.*/VE_ROOT=\"$root\"/;
+		$conf =~ s/VE_PRIVATE=.*/VE_PRIVATE=\"$private\"/;
+		$conf =~ s/host_ifname=veth[0-9]+\./host_ifname=veth${vmid}\./g;
 
-	    PVE::Tools::file_set_contents($conffile, $conf);
+		PVE::Tools::file_set_contents($conffile, $conf);
 		
-	    foreach my $s (PVE::OpenVZ::SCRIPT_EXT) {
+		foreach my $s (PVE::OpenVZ::SCRIPT_EXT) {
 		my $tfn = "$cfgdir/${vmid}.$s";
 		my $sfn = "$private/etc/vzdump/vps.$s";
 		if (-f $sfn) {
-		    my $sc = PVE::Tools::file_get_contents($sfn);
-		    PVE::Tools::file_set_contents($tfn, $sc);
+			my $sc = PVE::Tools::file_get_contents($sfn);
+			PVE::Tools::file_set_contents($tfn, $sc);
 		}
-	    }
+		}
 	}
 
 	rmtree "$private/etc/vzdump";
-    };
+	};
 
-    my $err = $@;
+	my $err = $@;
 
-    if ($err) {
+	if ($err) {
 	rmtree $private;
 	rmtree $root;
 	unlink $conffile;
 	foreach my $s (PVE::OpenVZ::SCRIPT_EXT) {
-	    unlink "$cfgdir/${vmid}.$s";
+		unlink "$cfgdir/${vmid}.$s";
 	}
 	die $err;
-    }
+	}
 
-    return $conf;
+	return $conf;
 };
 
 # create_vm is also used by vzrestore
 __PACKAGE__->register_method({
-    name => 'create_vm', 
-    path => '', 
-    method => 'POST',
-    description => "Create or restore a container.",
-    permissions => {
+	name => 'create_vm', 
+	path => '', 
+	method => 'POST',
+	description => "Create or restore a container.",
+	permissions => {
 	user => 'all', # check inside
- 	description => "You need 'VM.Allocate' permissions on /vms/{vmid} or on the VM pool /pool/{pool}. " .
-	    "For restore, it is enough if the user has 'VM.Backup' permission and the VM already exists. " .
-	    "You also need 'Datastore.AllocateSpace' permissions on the storage.",
-    },
-    protected => 1,
-    proxyto => 'node',
-    parameters => {
-    	additionalProperties => 0,
+	description => "You need 'VM.Allocate' permissions on /vms/{vmid} or on the VM pool /pool/{pool}. " .
+		"For restore, it is enough if the user has 'VM.Backup' permission and the VM already exists. " .
+		"You also need 'Datastore.AllocateSpace' permissions on the storage.",
+	},
+	protected => 1,
+	proxyto => 'node',
+	parameters => {
+		additionalProperties => 0,
 	properties => PVE::OpenVZ::json_config_properties({
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
-	    ostemplate => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+		ostemplate => {
 		description => "The OS template or backup file.",
 		type => 'string', 
 		maxLength => 255,
-	    },
-	    password => { 
+		},
+		password => { 
 		optional => 1, 
 		type => 'string',
 		description => "Sets root password inside container.",
-	    },
-	    storage => get_standard_option('pve-storage-id', {
+		},
+		storage => get_standard_option('pve-storage-id', {
 		description => "Target storage.",
 		default => 'local',
 		optional => 1,
-	    }),
-	    force => {
+		}),
+		force => {
 		optional => 1, 
 		type => 'boolean',
 		description => "Allow to overwrite existing container.",
-	    },
-	    restore => {
+		},
+		restore => {
 		optional => 1, 
 		type => 'boolean',
 		description => "Mark this as restore task.",
-	    },
-	    pool => { 
+		},
+		pool => { 
 		optional => 1,
 		type => 'string', format => 'pve-poolid',
 		description => "Add the VM to the specified pool.",
-	    },
+		},
 	}),
-    },
-    returns => { 
+	},
+	returns => { 
 	type => 'string',
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	my $rpcenv = PVE::RPCEnvironment::get();
@@ -301,28 +301,28 @@ __PACKAGE__->register_method({
 	my $scfg = PVE::Storage::storage_check_node($storage_cfg, $storage, $node);
 
 	raise_param_exc({ storage => "storage '$storage' does not support openvz root directories"})
-	    if !$scfg->{content}->{rootdir};
+		if !$scfg->{content}->{rootdir};
 
 	my $private = PVE::Storage::get_private_dir($storage_cfg, $storage, $vmid);
 
 	my $basecfg_fn = PVE::OpenVZ::config_file($vmid);
 
 	if (defined($pool)) {
-	    $rpcenv->check_pool_exist($pool);
-	    $rpcenv->check_perm_modify($authuser, "/pool/$pool");
+		$rpcenv->check_pool_exist($pool);
+		$rpcenv->check_perm_modify($authuser, "/pool/$pool");
 	} 
 
 	$rpcenv->check($authuser, "/storage/$storage", ['Datastore.AllocateSpace']);
 
 	if ($rpcenv->check($authuser, "/vms/$vmid", ['VM.Allocate'], 1)) {
-	    # OK
+		# OK
 	} elsif ($pool && $rpcenv->check($authuser, "/pool/$pool", ['VM.Allocate'], 1)) {
-	    # OK
+		# OK
 	} elsif ($param->{restore} && $param->{force} && (-f $basecfg_fn) &&
-		 $rpcenv->check($authuser, "/vms/$vmid", ['VM.Backup'], 1)) {
-	    # OK: user has VM.Backup permissions, and want to restore an existing VM
+		$rpcenv->check($authuser, "/vms/$vmid", ['VM.Backup'], 1)) {
+		# OK: user has VM.Backup permissions, and want to restore an existing VM
 	} else {
-	    raise_perm_exc();
+		raise_perm_exc();
 	}
 
 	&$check_ct_modify_config_perm($rpcenv, $authuser, $vmid, $pool, [ keys %$param]);
@@ -336,63 +336,63 @@ __PACKAGE__->register_method({
 	my $archive;
 
 	if ($ostemplate eq '-') {
-	    die "pipe requires cli environment\n" 
+		die "pipe requires cli environment\n" 
 		if $rpcenv->{type} ne 'cli'; 
-	    die "pipe can only be used with restore tasks\n" 
+		die "pipe can only be used with restore tasks\n" 
 		if !$param->{restore};
-	    $archive = '-';
+		$archive = '-';
 	} else {
-	    $rpcenv->check_volume_access($authuser, $storage_cfg, $vmid, $ostemplate);
-	    $archive = PVE::Storage::abs_filesystem_path($storage_cfg, $ostemplate);
+		$rpcenv->check_volume_access($authuser, $storage_cfg, $vmid, $ostemplate);
+		$archive = PVE::Storage::abs_filesystem_path($storage_cfg, $ostemplate);
 	}
 
 	if (!defined($param->{searchdomain}) && 
-	    !defined($param->{nameserver})) {
+		!defined($param->{nameserver})) {
 	
-	    my $resolv = PVE::INotify::read_file('resolvconf');
+		my $resolv = PVE::INotify::read_file('resolvconf');
 
-	    $param->{searchdomain} = $resolv->{search} if $resolv->{search};
+		$param->{searchdomain} = $resolv->{search} if $resolv->{search};
 
-	    my @ns = ();
-	    push @ns, $resolv->{dns1} if  $resolv->{dns1};
-	    push @ns, $resolv->{dns2} if  $resolv->{dns2};
-	    push @ns, $resolv->{dns3} if  $resolv->{dns3};
+		my @ns = ();
+		push @ns, $resolv->{dns1} if  $resolv->{dns1};
+		push @ns, $resolv->{dns2} if  $resolv->{dns2};
+		push @ns, $resolv->{dns3} if  $resolv->{dns3};
 
-	    $param->{nameserver} = join(' ', @ns) if scalar(@ns);
+		$param->{nameserver} = join(' ', @ns) if scalar(@ns);
 	}
 
 	# try to append domain to hostmane
 	if ($param->{hostname} && $param->{hostname} !~ m/\./ &&
-	    $param->{searchdomain}) {
+		$param->{searchdomain}) {
 
-	    $param->{hostname} .= ".$param->{searchdomain}";
+		$param->{hostname} .= ".$param->{searchdomain}";
 	}
 
 	my $check_vmid_usage = sub {
-	    if ($param->{force}) {
+		if ($param->{force}) {
 		die "cant overwrite mounted container\n" 
-		    if PVE::OpenVZ::check_mounted($conf, $vmid);
-	    } else {
+			if PVE::OpenVZ::check_mounted($conf, $vmid);
+		} else {
 		die "CT $vmid already exists\n" if -f $basecfg_fn;
-	    }
+		}
 	};
 
 	my $code = sub {
 
-	    &$check_vmid_usage(); # final check after locking
+		&$check_vmid_usage(); # final check after locking
 
-	    PVE::OpenVZ::update_ovz_config($vmid, $conf, $param);
+		PVE::OpenVZ::update_ovz_config($vmid, $conf, $param);
 
-	    my $rawconf = PVE::OpenVZ::generate_raw_config($pve_base_ovz_config, $conf);
+		my $rawconf = PVE::OpenVZ::generate_raw_config($pve_base_ovz_config, $conf);
 
-	    PVE::Cluster::check_cfs_quorum();
+		PVE::Cluster::check_cfs_quorum();
 
-	    if ($param->{restore}) {
+		if ($param->{restore}) {
 		&$restore_openvz($private, $archive, $vmid, $param->{force});
 
 		# is this really needed?
 		my $cmd = ['vzctl', '--skiplock', '--quiet', 'set', $vmid, 
-			   '--applyconfig_map', 'name', '--save'];
+			'--applyconfig_map', 'name', '--save'];
 		run_command($cmd);
 
 		# reload config
@@ -401,23 +401,23 @@ __PACKAGE__->register_method({
 		# and initialize quota
 		my $disk_quota = $conf->{disk_quota}->{value};
 		if (!defined($disk_quota) || ($disk_quota != 0)) {
-		    $cmd = ['vzctl', '--skiplock', 'quotainit', $vmid];
-		    run_command($cmd);
+			$cmd = ['vzctl', '--skiplock', 'quotainit', $vmid];
+			run_command($cmd);
 		}
 
-	    } else {
+		} else {
 		PVE::Tools::file_set_contents($basecfg_fn, $rawconf);
 		my $cmd = ['vzctl', '--skiplock', 'create', $vmid,
-			   '--ostemplate', $archive, '--private', $private];
+			'--ostemplate', $archive, '--private', $private];
 		run_command($cmd);
 		
 		# hack: vzctl '--userpasswd' starts the CT, but we want 
 		# to avoid that for create
 		PVE::OpenVZ::set_rootpasswd($private, $password) 
-		    if defined($password);
-	    }
+			if defined($password);
+		}
 
-	    PVE::AccessControl::add_vm_to_pool($vmid, $pool) if $pool;
+		PVE::AccessControl::add_vm_to_pool($vmid, $pool) if $pool;
 	};
 
 	my $realcmd = sub { PVE::OpenVZ::lock_container($vmid, 1, $code); };
@@ -425,43 +425,43 @@ __PACKAGE__->register_method({
 	&$check_vmid_usage(); # first check before locking
 
 	return $rpcenv->fork_worker($param->{restore} ? 'vzrestore' : 'vzcreate', 
-				    $vmid, $authuser, $realcmd);
-    }});
+					$vmid, $authuser, $realcmd);
+	}});
 
 my $vm_config_perm_list = [
-	    'VM.Config.Disk', 
-	    'VM.Config.CPU', 
-	    'VM.Config.Memory', 
-	    'VM.Config.Network', 
-	    'VM.Config.Options',
-    ];
+		'VM.Config.Disk', 
+		'VM.Config.CPU', 
+		'VM.Config.Memory', 
+		'VM.Config.Network', 
+		'VM.Config.Options',
+	];
 
 __PACKAGE__->register_method({
-    name => 'update_vm', 
-    path => '{vmid}/config', 
-    method => 'PUT',
-    protected => 1,
-    proxyto => 'node',
-    description => "Set virtual machine options.",
-    permissions => {
+	name => 'update_vm', 
+	path => '{vmid}/config', 
+	method => 'PUT',
+	protected => 1,
+	proxyto => 'node',
+	description => "Set virtual machine options.",
+	permissions => {
 	check => ['perm', '/vms/{vmid}', $vm_config_perm_list, any => 1],
-    },
-    parameters => {
-    	additionalProperties => 0,
+	},
+	parameters => {
+		additionalProperties => 0,
 	properties => PVE::OpenVZ::json_config_properties(
-	    {
+		{
 		node => get_standard_option('pve-node'),
 		vmid => get_standard_option('pve-vmid'),
 		digest => {
-		    type => 'string',
-		    description => 'Prevent changes if current configuration file has different SHA1 digest. This can be used to prevent concurrent modifications.',
-		    maxLength => 40,
-		    optional => 1,		    
+			type => 'string',
+			description => 'Prevent changes if current configuration file has different SHA1 digest. This can be used to prevent concurrent modifications.',
+			maxLength => 40,
+			optional => 1,		    
 		}
-	    }),
-    },
-    returns => { type => 'null'},
-    code => sub {
+		}),
+	},
+	returns => { type => 'null'},
+	code => sub {
 	my ($param) = @_;
 
 	my $rpcenv = PVE::RPCEnvironment::get();
@@ -480,203 +480,203 @@ __PACKAGE__->register_method({
 
 	my $code = sub {
 
-	    my $conf = PVE::OpenVZ::load_config($vmid);
-	    die "checksum missmatch (file change by other user?)\n" 
+		my $conf = PVE::OpenVZ::load_config($vmid);
+		die "checksum missmatch (file change by other user?)\n" 
 		if $digest && $digest ne $conf->{digest};
 
-	    my $changes = PVE::OpenVZ::update_ovz_config($vmid, $conf, $param);
+		my $changes = PVE::OpenVZ::update_ovz_config($vmid, $conf, $param);
 
-	    return if scalar (@$changes) <= 0;
+		return if scalar (@$changes) <= 0;
 
-	    my $cmd = ['vzctl', '--skiplock', 'set', $vmid, @$changes, '--save'];
+		my $cmd = ['vzctl', '--skiplock', 'set', $vmid, @$changes, '--save'];
 
-	    PVE::Cluster::log_msg('info', $authuser, "update CT $vmid: " . join(' ', @$changes));
- 
-	    run_command($cmd);
+		PVE::Cluster::log_msg('info', $authuser, "update CT $vmid: " . join(' ', @$changes));
+
+		run_command($cmd);
 	};
 
 	PVE::OpenVZ::lock_container($vmid, undef, $code);
 
 	return undef;
-    }});
+	}});
 
 __PACKAGE__->register_method({
-    name => 'vmdiridx',
-    path => '{vmid}', 
-    method => 'GET',
-    proxyto => 'node',
-    description => "Directory index",
-    permissions => {
+	name => 'vmdiridx',
+	path => '{vmid}', 
+	method => 'GET',
+	proxyto => 'node',
+	description => "Directory index",
+	permissions => {
 	user => 'all',
-    },
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
 	},
-    },
-    returns => {
+	parameters => {
+		additionalProperties => 0,
+	properties => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+	},
+	},
+	returns => {
 	type => 'array',
 	items => {
-	    type => "object",
-	    properties => {
+		type => "object",
+		properties => {
 		subdir => { type => 'string' },
-	    },
+		},
 	},
 	links => [ { rel => 'child', href => "{subdir}" } ],
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	# test if VM exists
 	my $conf = PVE::OpenVZ::load_config($param->{vmid});
 
 	my $res = [
-	    { subdir => 'config' },
-	    { subdir => 'status' },
-	    { subdir => 'vncproxy' },
-	    { subdir => 'spiceproxy' },
-	    { subdir => 'migrate' },
-	    { subdir => 'initlog' },
-	    { subdir => 'rrd' },
-	    { subdir => 'rrddata' },
-	    ];
+		{ subdir => 'config' },
+		{ subdir => 'status' },
+		{ subdir => 'vncproxy' },
+		{ subdir => 'spiceproxy' },
+		{ subdir => 'migrate' },
+		{ subdir => 'initlog' },
+		{ subdir => 'rrd' },
+		{ subdir => 'rrddata' },
+		];
 	
 	return $res;
-    }});
+	}});
 
 __PACKAGE__->register_method({
-    name => 'rrd', 
-    path => '{vmid}/rrd', 
-    method => 'GET',
-    protected => 1, # fixme: can we avoid that?
-    permissions => {
+	name => 'rrd', 
+	path => '{vmid}/rrd', 
+	method => 'GET',
+	protected => 1, # fixme: can we avoid that?
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.Audit' ]],
-    },
-    description => "Read VM RRD statistics (returns PNG)",
-    parameters => {
-    	additionalProperties => 0,
+	},
+	description => "Read VM RRD statistics (returns PNG)",
+	parameters => {
+		additionalProperties => 0,
 	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
-	    timeframe => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+		timeframe => {
 		description => "Specify the time frame you are interested in.",
 		type => 'string',
 		enum => [ 'hour', 'day', 'week', 'month', 'year' ],
-	    },
-	    ds => {
+		},
+		ds => {
 		description => "The list of datasources you want to display.",
- 		type => 'string', format => 'pve-configid-list',
-	    },
-	    cf => {
+		type => 'string', format => 'pve-configid-list',
+		},
+		cf => {
 		description => "The RRD consolidation function",
- 		type => 'string',
+		type => 'string',
 		enum => [ 'AVERAGE', 'MAX' ],
 		optional => 1,
-	    },
+		},
 	},
-    },
-    returns => {
+	},
+	returns => {
 	type => "object",
 	properties => {
-	    filename => { type => 'string' },
+		filename => { type => 'string' },
 	},
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	return PVE::Cluster::create_rrd_graph(
-	    "pve2-vm/$param->{vmid}", $param->{timeframe}, 
-	    $param->{ds}, $param->{cf});
-					      
-    }});
+		"pve2-vm/$param->{vmid}", $param->{timeframe}, 
+		$param->{ds}, $param->{cf});
+						
+	}});
 
 __PACKAGE__->register_method({
-    name => 'rrddata', 
-    path => '{vmid}/rrddata', 
-    method => 'GET',
-    protected => 1, # fixme: can we avoid that?
-    permissions => {
+	name => 'rrddata', 
+	path => '{vmid}/rrddata', 
+	method => 'GET',
+	protected => 1, # fixme: can we avoid that?
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.Audit' ]],
-    },
-    description => "Read VM RRD statistics",
-    parameters => {
-    	additionalProperties => 0,
+	},
+	description => "Read VM RRD statistics",
+	parameters => {
+		additionalProperties => 0,
 	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
-	    timeframe => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+		timeframe => {
 		description => "Specify the time frame you are interested in.",
 		type => 'string',
 		enum => [ 'hour', 'day', 'week', 'month', 'year' ],
-	    },
-	    cf => {
+		},
+		cf => {
 		description => "The RRD consolidation function",
- 		type => 'string',
+		type => 'string',
 		enum => [ 'AVERAGE', 'MAX' ],
 		optional => 1,
-	    },
+		},
 	},
-    },
-    returns => {
+	},
+	returns => {
 	type => "array",
 	items => {
-	    type => "object",
-	    properties => {},
+		type => "object",
+		properties => {},
 	},
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	return PVE::Cluster::create_rrd_data(
-	    "pve2-vm/$param->{vmid}", $param->{timeframe}, $param->{cf});
-    }});
+		"pve2-vm/$param->{vmid}", $param->{timeframe}, $param->{cf});
+	}});
 
 __PACKAGE__->register_method({
-    name => 'initlog', 
-    path => '{vmid}/initlog', 
-    method => 'GET',
-    protected => 1,
-    proxyto => 'node',
-    permissions => {
+	name => 'initlog', 
+	path => '{vmid}/initlog', 
+	method => 'GET',
+	protected => 1,
+	proxyto => 'node',
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.Audit' ]],
-    },
-    description => "Read init log.",
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
-	    start => {
-		type => 'integer',
-		minimum => 0,
-		optional => 1,
-	    },
-	    limit => {
-		type => 'integer',
-		minimum => 0,
-		optional => 1,
-	    },
 	},
-    },
-    returns => {
+	description => "Read init log.",
+	parameters => {
+		additionalProperties => 0,
+	properties => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+		start => {
+		type => 'integer',
+		minimum => 0,
+		optional => 1,
+		},
+		limit => {
+		type => 'integer',
+		minimum => 0,
+		optional => 1,
+		},
+	},
+	},
+	returns => {
 	type => 'array',
 	items => { 
-	    type => "object",
-	    properties => {
+		type => "object",
+		properties => {
 		n => {
-		  description=>  "Line number",
-		  type=> 'integer',
+		description=>  "Line number",
+		type=> 'integer',
 		},
 		t => {
-		  description=>  "Line text",
-		  type => 'string',
+		description=>  "Line text",
+		type => 'string',
 		}
-	    }
+		}
 	}
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	my $rpcenv = PVE::RPCEnvironment::get();
@@ -693,36 +693,36 @@ __PACKAGE__->register_method({
 	my ($count, $lines) = PVE::Tools::dump_logfile($logfn, $param->{start}, $param->{limit});
 
 	$rpcenv->set_result_attrib('total', $count);
-	    
+		
 	return $lines; 
-    }});
+	}});
 
 __PACKAGE__->register_method({
-    name => 'vm_config', 
-    path => '{vmid}/config', 
-    method => 'GET',
-    proxyto => 'node',
-    description => "Get container configuration.",
-    permissions => {
+	name => 'vm_config', 
+	path => '{vmid}/config', 
+	method => 'GET',
+	proxyto => 'node',
+	description => "Get container configuration.",
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.Audit' ]],
-    },
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
 	},
-    },
-    returns => { 
+	parameters => {
+		additionalProperties => 0,
+	properties => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+	},
+	},
+	returns => { 
 	type => "object",
 	properties => {
-	    digest => {
+		digest => {
 		type => 'string',
 		description => 'SHA1 digest of configuration file. This can be used to prevent concurrent modifications.',
-	    }
+		}
 	},
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	my $veconf = PVE::OpenVZ::load_config($param->{vmid});
@@ -731,7 +731,7 @@ __PACKAGE__->register_method({
 	my $conf = { digest => $veconf->{digest} };
 
 	if ($veconf->{ostemplate} && $veconf->{ostemplate}->{value}) {
-	    $conf->{ostemplate} = $veconf->{ostemplate}->{value};
+		$conf->{ostemplate} = $veconf->{ostemplate}->{value};
 	}
 
 	my $stcfg = cfs_read_file("storage.cfg");
@@ -742,52 +742,52 @@ __PACKAGE__->register_method({
 	my $properties = PVE::OpenVZ::json_config_properties();
 
 	foreach my $k (keys %$properties) {
-	    next if $k eq 'memory';
-	    next if $k eq 'swap';
-	    next if $k eq 'disk';
+		next if $k eq 'memory';
+		next if $k eq 'swap';
+		next if $k eq 'disk';
 
-	    next if !$veconf->{$k};
-	    next if !defined($veconf->{$k}->{value});
+		next if !$veconf->{$k};
+		next if !defined($veconf->{$k}->{value});
 
-	    if ($k eq 'description') {
+		if ($k eq 'description') {
 		$conf->{$k} = PVE::Tools::decode_text($veconf->{$k}->{value});
-	    } else {
+		} else {
 		$conf->{$k} = $veconf->{$k}->{value};
-	    }
+		}
 	}
 
 	($conf->{memory}, $conf->{swap}) = PVE::OpenVZ::ovz_config_extract_mem_swap($veconf, 1024*1024);
 
 	my $diskspace = $veconf->{diskspace}->{bar} || LONG_MAX;
 	if ($diskspace == LONG_MAX) {
-	    $conf->{disk} = 0;
+		$conf->{disk} = 0;
 	} else {
-	    $conf->{disk} = $diskspace/(1024*1024);
+		$conf->{disk} = $diskspace/(1024*1024);
 	}
 	return $conf;
-    }});
+	}});
 
 __PACKAGE__->register_method({
-    name => 'destroy_vm', 
-    path => '{vmid}', 
-    method => 'DELETE',
-    protected => 1,
-    proxyto => 'node',
-    description => "Destroy the container (also delete all uses files).",
-    permissions => {
+	name => 'destroy_vm', 
+	path => '{vmid}', 
+	method => 'DELETE',
+	protected => 1,
+	proxyto => 'node',
+	description => "Destroy the container (also delete all uses files).",
+	permissions => {
 	check => [ 'perm', '/vms/{vmid}', ['VM.Allocate']],
-    },
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
 	},
-    },
-    returns => { 
+	parameters => {
+		additionalProperties => 0,
+	properties => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+	},
+	},
+	returns => { 
 	type => 'string',
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	my $rpcenv = PVE::RPCEnvironment::get();
@@ -800,45 +800,45 @@ __PACKAGE__->register_method({
 	my $conf = PVE::OpenVZ::load_config($param->{vmid});
 
 	my $realcmd = sub {
-	    my $cmd = ['vzctl', 'destroy', $vmid ];
+		my $cmd = ['vzctl', 'destroy', $vmid ];
 
-	    run_command($cmd);
+		run_command($cmd);
 
-	    PVE::AccessControl::remove_vm_from_pool($vmid);
+		PVE::AccessControl::remove_vm_from_pool($vmid);
 	};
 
 	return $rpcenv->fork_worker('vzdestroy', $vmid, $authuser, $realcmd);
-    }});
+	}});
 
 my $sslcert;
 
 __PACKAGE__->register_method ({
-    name => 'vncproxy', 
-    path => '{vmid}/vncproxy', 
-    method => 'POST',
-    protected => 1,
-    permissions => {
+	name => 'vncproxy', 
+	path => '{vmid}/vncproxy', 
+	method => 'POST',
+	protected => 1,
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.Console' ]],
-    },
-    description => "Creates a TCP VNC proxy connections.",
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
 	},
-    },
-    returns => { 
-    	additionalProperties => 0,
+	description => "Creates a TCP VNC proxy connections.",
+	parameters => {
+		additionalProperties => 0,
 	properties => {
-	    user => { type => 'string' },
-	    ticket => { type => 'string' },
-	    cert => { type => 'string' },
-	    port => { type => 'integer' },
-	    upid => { type => 'string' },
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
 	},
-    },
-    code => sub {
+	},
+	returns => { 
+		additionalProperties => 0,
+	properties => {
+		user => { type => 'string' },
+		ticket => { type => 'string' },
+		cert => { type => 'string' },
+		port => { type => 'integer' },
+		upid => { type => 'string' },
+	},
+	},
+	code => sub {
 	my ($param) = @_;
 
 	my $rpcenv = PVE::RPCEnvironment::get();
@@ -853,40 +853,40 @@ __PACKAGE__->register_method ({
 	my $ticket = PVE::AccessControl::assemble_vnc_ticket($authuser, $authpath);
 
 	$sslcert = PVE::Tools::file_get_contents("/etc/pve/pve-root-ca.pem", 8192)
-	    if !$sslcert;
+		if !$sslcert;
 
 	my $port = PVE::Tools::next_vnc_port();
 
 	my $remip;
 	
 	if ($node ne PVE::INotify::nodename()) {
-	    $remip = PVE::Cluster::remote_node_ip($node);
+		$remip = PVE::Cluster::remote_node_ip($node);
 	}
 
 	# NOTE: vncterm VNC traffic is already TLS encrypted,
 	# so we select the fastest chipher here (or 'none'?)
 	my $remcmd = $remip ? 
-	    ['/usr/bin/ssh', '-t', $remip] : [];
+		['/usr/bin/ssh', '-t', $remip] : [];
 
 	my $shcmd = [ '/usr/bin/dtach', '-A', 
-		      "/var/run/dtach/vzctlconsole$vmid", 
-		      '-r', 'winch', '-z', 
-		      '/usr/sbin/vzctl', 'console', $vmid ];
+			"/var/run/dtach/vzctlconsole$vmid", 
+			'-r', 'winch', '-z', 
+			'/usr/sbin/vzctl', 'console', $vmid ];
 
 	my $realcmd = sub {
-	    my $upid = shift;
+		my $upid = shift;
 
-	    syslog ('info', "starting openvz vnc proxy $upid\n");
+		syslog ('info', "starting openvz vnc proxy $upid\n");
 
-	    my $timeout = 10; 
+		my $timeout = 10; 
 
-	    my $cmd = ['/usr/bin/vncterm', '-rfbport', $port,
-		       '-timeout', $timeout, '-authpath', $authpath, 
-		       '-perm', 'VM.Console', '-c', @$remcmd, @$shcmd];
+		my $cmd = ['/usr/bin/vncterm', '-rfbport', $port,
+			'-timeout', $timeout, '-authpath', $authpath, 
+			'-perm', 'VM.Console', '-c', @$remcmd, @$shcmd];
 
-	    run_command($cmd);
+		run_command($cmd);
 
-	    return;
+		return;
 	};
 
 	my $upid = $rpcenv->fork_worker('vncproxy', $vmid, $authuser, $realcmd);
@@ -894,34 +894,34 @@ __PACKAGE__->register_method ({
 	PVE::Tools::wait_for_vnc_port($port);
 
 	return {
-	    user => $authuser,
-	    ticket => $ticket,
-	    port => $port, 
-	    upid => $upid, 
-	    cert => $sslcert, 
+		user => $authuser,
+		ticket => $ticket,
+		port => $port, 
+		upid => $upid, 
+		cert => $sslcert, 
 	};
-    }});
+	}});
 
 __PACKAGE__->register_method ({
-    name => 'spiceproxy', 
-    path => '{vmid}/spiceproxy', 
-    method => 'POST',
-    protected => 1,
-    proxyto => 'node',
-    permissions => {
+	name => 'spiceproxy', 
+	path => '{vmid}/spiceproxy', 
+	method => 'POST',
+	protected => 1,
+	proxyto => 'node',
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.Console' ]],
-    },
-    description => "Returns a SPICE configuration to connect to the CT.",
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
-	    proxy => get_standard_option('spice-proxy', { optional => 1 }),
 	},
-    },
-    returns => get_standard_option('remote-viewer-config'),
-    code => sub {
+	description => "Returns a SPICE configuration to connect to the CT.",
+	parameters => {
+		additionalProperties => 0,
+	properties => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+		proxy => get_standard_option('spice-proxy', { optional => 1 }),
+	},
+	},
+	returns => get_standard_option('remote-viewer-config'),
+	code => sub {
 	my ($param) = @_;
 
 	my $vmid = $param->{vmid};
@@ -932,86 +932,86 @@ __PACKAGE__->register_method ({
 	my $permissions = 'VM.Console';
 
 	my $shcmd = ['/usr/bin/dtach', '-A', 
-		     "/var/run/dtach/vzctlconsole$vmid", 
-		     '-r', 'winch', '-z', 
-		     '/usr/sbin/vzctl', 'console', $vmid];
+			"/var/run/dtach/vzctlconsole$vmid", 
+			'-r', 'winch', '-z', 
+			'/usr/sbin/vzctl', 'console', $vmid];
 
 	my $title = "CT $vmid";
 
 	return PVE::API2Tools::run_spiceterm($authpath, $permissions, $vmid, $node, $proxy, $title, $shcmd);
-    }});
+	}});
 
 __PACKAGE__->register_method({
-    name => 'vmcmdidx',
-    path => '{vmid}/status', 
-    method => 'GET',
-    proxyto => 'node',
-    description => "Directory index",
-    permissions => {
+	name => 'vmcmdidx',
+	path => '{vmid}/status', 
+	method => 'GET',
+	proxyto => 'node',
+	description => "Directory index",
+	permissions => {
 	user => 'all',
-    },
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
 	},
-    },
-    returns => {
+	parameters => {
+		additionalProperties => 0,
+	properties => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+	},
+	},
+	returns => {
 	type => 'array',
 	items => {
-	    type => "object",
-	    properties => {
+		type => "object",
+		properties => {
 		subdir => { type => 'string' },
-	    },
+		},
 	},
 	links => [ { rel => 'child', href => "{subdir}" } ],
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	# test if VM exists
 	my $conf = PVE::OpenVZ::load_config($param->{vmid});
 
 	my $res = [
-	    { subdir => 'current' },
-	    { subdir => 'ubc' },
-	    { subdir => 'start' },
-	    { subdir => 'stop' },
-	    ];
+		{ subdir => 'current' },
+		{ subdir => 'ubc' },
+		{ subdir => 'start' },
+		{ subdir => 'stop' },
+		];
 	
 	return $res;
-    }});
+	}});
 
 my $vm_is_ha_managed = sub {
-    my ($vmid) = @_;
+	my ($vmid) = @_;
 
-    my $cc = PVE::Cluster::cfs_read_file('cluster.conf');
-    if (PVE::Cluster::cluster_conf_lookup_pvevm($cc, 0, $vmid, 1)) {
+	my $cc = PVE::Cluster::cfs_read_file('cluster.conf');
+	if (PVE::Cluster::cluster_conf_lookup_pvevm($cc, 0, $vmid, 1)) {
 	return 1;
-    } 
-    return 0;
+	} 
+	return 0;
 };
 
 __PACKAGE__->register_method({
-    name => 'vm_status', 
-    path => '{vmid}/status/current',
-    method => 'GET',
-    proxyto => 'node',
-    protected => 1, # openvz /proc entries are only readable by root
-    description => "Get virtual machine status.",
-    permissions => {
+	name => 'vm_status', 
+	path => '{vmid}/status/current',
+	method => 'GET',
+	proxyto => 'node',
+	protected => 1, # openvz /proc entries are only readable by root
+	description => "Get virtual machine status.",
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.Audit' ]],
-    },
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
 	},
-    },
-    returns => { type => 'object' },
-    code => sub {
+	parameters => {
+		additionalProperties => 0,
+	properties => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+	},
+	},
+	returns => { type => 'object' },
+	code => sub {
 	my ($param) = @_;
 
 	# test if VM exists
@@ -1023,40 +1023,40 @@ __PACKAGE__->register_method({
 	$status->{ha} = &$vm_is_ha_managed($param->{vmid});
 
 	return $status;
-    }});
+	}});
 
 __PACKAGE__->register_method({
-    name => 'vm_user_beancounters', 
-    path => '{vmid}/status/ubc',
-    method => 'GET',
-    proxyto => 'node',
-    protected => 1, # openvz /proc entries are only readable by root
-    description => "Get container user_beancounters.",
-    permissions => {
+	name => 'vm_user_beancounters', 
+	path => '{vmid}/status/ubc',
+	method => 'GET',
+	proxyto => 'node',
+	protected => 1, # openvz /proc entries are only readable by root
+	description => "Get container user_beancounters.",
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.Audit' ]],
-    },
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
 	},
-    },
-    returns => {
+	parameters => {
+		additionalProperties => 0,
+	properties => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+	},
+	},
+	returns => {
 	type => 'array',
 	items => {
-	    type => "object",
-	    properties => {
+		type => "object",
+		properties => {
 		id => { type => 'string' },
 		held => { type => 'number' },
 		maxheld => { type => 'number' },
 		bar => { type => 'number' },
 		lim => { type => 'number' },
 		failcnt => { type => 'number' },
-	    },
+		},
 	},
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	# test if VM exists
@@ -1067,29 +1067,29 @@ __PACKAGE__->register_method({
 	delete $ubc->{failcntsum};
 
 	return PVE::RESTHandler::hash_to_array($ubc, 'id');
-    }});
+	}});
 
 __PACKAGE__->register_method({
-    name => 'vm_start', 
-    path => '{vmid}/status/start',
-    method => 'POST',
-    protected => 1,
-    proxyto => 'node',
-    description => "Start the container.",
-    permissions => {
+	name => 'vm_start', 
+	path => '{vmid}/status/start',
+	method => 'POST',
+	protected => 1,
+	proxyto => 'node',
+	description => "Start the container.",
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.PowerMgmt' ]],
-    },
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
 	},
-    },
-    returns => { 
+	parameters => {
+		additionalProperties => 0,
+	properties => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+	},
+	},
+	returns => { 
 	type => 'string',
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	my $rpcenv = PVE::RPCEnvironment::get();
@@ -1104,7 +1104,7 @@ __PACKAGE__->register_method({
 
 	if (&$vm_is_ha_managed($vmid) && $rpcenv->{type} ne 'ha') {
 
-	    my $hacmd = sub {
+		my $hacmd = sub {
 		my $upid = shift;
 
 		my $service = "pvevm:$vmid";
@@ -1116,13 +1116,13 @@ __PACKAGE__->register_method({
 		PVE::Tools::run_command($cmd);
 
 		return;
-	    };
+		};
 
-	    return $rpcenv->fork_worker('hastart', $vmid, $authuser, $hacmd);
+		return $rpcenv->fork_worker('hastart', $vmid, $authuser, $hacmd);
 
 	} else {
 
-	    my $realcmd = sub {
+		my $realcmd = sub {
 		my $upid = shift;
 
 		syslog('info', "starting CT $vmid: $upid\n");
@@ -1130,7 +1130,7 @@ __PACKAGE__->register_method({
 		my $veconf = PVE::OpenVZ::load_config($vmid);
 		my $stcfg = cfs_read_file("storage.cfg");
 		if (my $sid = &$get_container_storage($stcfg, $vmid, $veconf)) {
-		    PVE::Storage::activate_storage($stcfg, $sid);
+			PVE::Storage::activate_storage($stcfg, $sid);
 		}
 
 		my $vzconf = PVE::OpenVZ::read_global_vz_config();
@@ -1140,37 +1140,37 @@ __PACKAGE__->register_method({
 		mkpath $root || die "unable to create root dir '$root'";
 
 		my $cmd = ['vzctl', 'start', $vmid];
-	    
+		
 		run_command($cmd);
 
 		return;
-	    };
+		};
 
-	    return $rpcenv->fork_worker('vzstart', $vmid, $authuser, $realcmd);
+		return $rpcenv->fork_worker('vzstart', $vmid, $authuser, $realcmd);
 	}
-    }});
+	}});
 
 __PACKAGE__->register_method({
-    name => 'vm_stop', 
-    path => '{vmid}/status/stop',
-    method => 'POST',
-    protected => 1,
-    proxyto => 'node',
-    description => "Stop the container.",
-    permissions => {
+	name => 'vm_stop', 
+	path => '{vmid}/status/stop',
+	method => 'POST',
+	protected => 1,
+	proxyto => 'node',
+	description => "Stop the container.",
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.PowerMgmt' ]],
-    },
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
 	},
-    },
-    returns => { 
+	parameters => {
+		additionalProperties => 0,
+	properties => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+	},
+	},
+	returns => { 
 	type => 'string',
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	my $rpcenv = PVE::RPCEnvironment::get();
@@ -1185,7 +1185,7 @@ __PACKAGE__->register_method({
 
 	if (&$vm_is_ha_managed($vmid) && $rpcenv->{type} ne 'ha') {
 
-	    my $hacmd = sub {
+		my $hacmd = sub {
 		my $upid = shift;
 
 		my $service = "pvevm:$vmid";
@@ -1197,48 +1197,48 @@ __PACKAGE__->register_method({
 		PVE::Tools::run_command($cmd);
 
 		return;
-	    };
+		};
 
-	    return $rpcenv->fork_worker('hastop', $vmid, $authuser, $hacmd);
+		return $rpcenv->fork_worker('hastop', $vmid, $authuser, $hacmd);
 
 	} else {
 
-	    my $realcmd = sub {
+		my $realcmd = sub {
 		my $upid = shift;
 
 		syslog('info', "stoping CT $vmid: $upid\n");
 
 		my $cmd = ['vzctl', 'stop', $vmid, '--fast'];
 		run_command($cmd);
-	    
+		
 		return;
-	    };
+		};
 
-	    return $rpcenv->fork_worker('vzstop', $vmid, $authuser, $realcmd);
+		return $rpcenv->fork_worker('vzstop', $vmid, $authuser, $realcmd);
 	}
-    }});
+	}});
 
 __PACKAGE__->register_method({
-    name => 'vm_mount', 
-    path => '{vmid}/status/mount',
-    method => 'POST',
-    protected => 1,
-    proxyto => 'node',
-    description => "Mounts container private area.",
-    permissions => {
+	name => 'vm_mount', 
+	path => '{vmid}/status/mount',
+	method => 'POST',
+	protected => 1,
+	proxyto => 'node',
+	description => "Mounts container private area.",
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.PowerMgmt' ]],
-    },
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
 	},
-    },
-    returns => { 
+	parameters => {
+		additionalProperties => 0,
+	properties => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+	},
+	},
+	returns => { 
 	type => 'string',
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	my $rpcenv = PVE::RPCEnvironment::get();
@@ -1252,41 +1252,41 @@ __PACKAGE__->register_method({
 	die "CT $vmid is running\n" if PVE::OpenVZ::check_running($vmid);
 
 	my $realcmd = sub {
-	    my $upid = shift;
+		my $upid = shift;
 
-	    syslog('info', "mount CT $vmid: $upid\n");
+		syslog('info', "mount CT $vmid: $upid\n");
 
-	    my $cmd = ['vzctl', 'mount', $vmid];
-	    
-	    run_command($cmd);
+		my $cmd = ['vzctl', 'mount', $vmid];
+		
+		run_command($cmd);
 
-	    return;
+		return;
 	};
 
 	return $rpcenv->fork_worker('vzmount', $vmid, $authuser, $realcmd);
-    }});
+	}});
 
 __PACKAGE__->register_method({
-    name => 'vm_umount', 
-    path => '{vmid}/status/umount',
-    method => 'POST',
-    protected => 1,
-    proxyto => 'node',
-    description => "Unmounts container private area.",
-    permissions => {
+	name => 'vm_umount', 
+	path => '{vmid}/status/umount',
+	method => 'POST',
+	protected => 1,
+	proxyto => 'node',
+	description => "Unmounts container private area.",
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.PowerMgmt' ]],
-    },
-    parameters => {
-    	additionalProperties => 0,
-	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
 	},
-    },
-    returns => { 
+	parameters => {
+		additionalProperties => 0,
+	properties => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+	},
+	},
+	returns => { 
 	type => 'string',
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	my $rpcenv = PVE::RPCEnvironment::get();
@@ -1300,54 +1300,54 @@ __PACKAGE__->register_method({
 	die "CT $vmid is running\n" if PVE::OpenVZ::check_running($vmid);
 
 	my $realcmd = sub {
-	    my $upid = shift;
+		my $upid = shift;
 
-	    syslog('info', "umount CT $vmid: $upid\n");
+		syslog('info', "umount CT $vmid: $upid\n");
 
-	    my $cmd = ['vzctl', 'umount', $vmid];
-	    
-	    run_command($cmd);
+		my $cmd = ['vzctl', 'umount', $vmid];
+		
+		run_command($cmd);
 
-	    return;
+		return;
 	};
 
 	return $rpcenv->fork_worker('vzumount', $vmid, $authuser, $realcmd);
-    }});
+	}});
 
 __PACKAGE__->register_method({
-    name => 'vm_shutdown', 
-    path => '{vmid}/status/shutdown',
-    method => 'POST',
-    protected => 1,
-    proxyto => 'node',
-    description => "Shutdown the container.",
-    permissions => {
+	name => 'vm_shutdown', 
+	path => '{vmid}/status/shutdown',
+	method => 'POST',
+	protected => 1,
+	proxyto => 'node',
+	description => "Shutdown the container.",
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.PowerMgmt' ]],
-    },
-    parameters => {
-    	additionalProperties => 0,
+	},
+	parameters => {
+		additionalProperties => 0,
 	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
-	    timeout => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+		timeout => {
 		description => "Wait maximal timeout seconds.",
 		type => 'integer',
 		minimum => 0,
 		optional => 1,
 		default => 60,
-	    },
-	    forceStop => {
+		},
+		forceStop => {
 		description => "Make sure the Container stops.",
 		type => 'boolean',
 		optional => 1,
 		default => 0,
-	    }
+		}
 	},
-    },
-    returns => { 
+	},
+	returns => { 
 	type => 'string',
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	my $rpcenv = PVE::RPCEnvironment::get();
@@ -1363,61 +1363,158 @@ __PACKAGE__->register_method({
 	die "CT $vmid not running\n" if !PVE::OpenVZ::check_running($vmid);
 
 	my $realcmd = sub {
-	    my $upid = shift;
+		my $upid = shift;
 
-	    syslog('info', "shutdown CT $vmid: $upid\n");
+		syslog('info', "shutdown CT $vmid: $upid\n");
 
-	    my $cmd = ['vzctl', 'stop', $vmid];
+		my $cmd = ['vzctl', 'stop', $vmid];
 
-	    $timeout = 60 if !defined($timeout);
+		$timeout = 60 if !defined($timeout);
 
-	    eval { run_command($cmd, timeout => $timeout); };
-	    my $err = $@;
-	    return if !$err;
+		eval { run_command($cmd, timeout => $timeout); };
+		my $err = $@;
+		return if !$err;
 
-	    die $err if !$param->{forceStop};
+		die $err if !$param->{forceStop};
 
-	    warn "shutdown failed - forcing stop now\n";
+		warn "shutdown failed - forcing stop now\n";
 
-	    push @$cmd, '--fast';
-	    run_command($cmd);
-	    
-	    return;
+		push @$cmd, '--fast';
+		run_command($cmd);
+		
+		return;
 	};
 
 	my $upid = $rpcenv->fork_worker('vzshutdown', $vmid, $authuser, $realcmd);
 
 	return $upid;
-    }});
+	}});
 
 __PACKAGE__->register_method({
-    name => 'migrate_vm', 
-    path => '{vmid}/migrate',
-    method => 'POST',
-    protected => 1,
-    proxyto => 'node',
-    description => "Migrate the container to another node. Creates a new migration task.",
-    permissions => {
+	name => 'vm_suspend',
+	path => '{vmid}/status/suspend',
+	method => 'POST',
+	protected => 1,
+	proxyto => 'node',
+	description => "Suspend the container.",
+	permissions => {
+		check => ['perm', '/vms/{vmid}', [ 'VM.PowerMgmt' ]],
+	},
+	parameters => {
+		additionalProperties => 0,
+		properties => {
+			node => get_standard_option('pve-node'),
+			vmid => get_standard_option('pve-vmid'),
+		},
+	},
+	returns => {
+		type => 'string',
+	},
+	code => sub {
+		my ($param) = @_;
+
+		my $rpcenv = PVE::RPCEnvironment::get();
+
+		my $authuser = $rpcenv->get_user();
+
+		my $node = extract_param($param, 'node');
+
+		my $vmid = extract_param($param, 'vmid');
+
+		die "CT $vmid not running\n" if !PVE::OpenVZ::check_running($vmid);
+
+		my $realcmd = sub {
+			my $upid = shift;
+
+			syslog('info', "suspend CT $vmid: $upid\n");
+
+			PVE::OpenVZ::vm_suspend($vmid);
+
+			return;
+		};
+
+		my $upid = $rpcenv->fork_worker('vzsuspend', $vmid, $authuser, $realcmd);
+
+		return $upid;
+	}});
+
+__PACKAGE__->register_method({
+	name => 'vm_resume',
+	path => '{vmid}/status/resume',
+	method => 'POST',
+	protected => 1,
+	proxyto => 'node',
+	description => "Resume the container.",
+	permissions => {
+		check => ['perm', '/vms/{vmid}', [ 'VM.PowerMgmt' ]],
+	},
+	parameters => {
+		additionalProperties => 0,
+		properties => {
+			node => get_standard_option('pve-node'),
+			vmid => get_standard_option('pve-vmid'),
+		},
+	},
+	returns => {
+		type => 'string',
+	},
+	code => sub {
+		my ($param) = @_;
+
+		my $rpcenv = PVE::RPCEnvironment::get();
+
+		my $authuser = $rpcenv->get_user();
+
+		my $node = extract_param($param, 'node');
+
+		my $vmid = extract_param($param, 'vmid');
+
+		die "CT $vmid already running\n" if PVE::OpenVZ::check_running($vmid);
+
+		my $realcmd = sub {
+			my $upid = shift;
+
+			syslog('info', "resume CT $vmid: $upid\n");
+
+			PVE::OpenVZ::vm_resume($vmid);
+
+			return;
+		};
+
+		my $upid = $rpcenv->fork_worker('vzresume', $vmid, $authuser, $realcmd);
+
+		return $upid;
+	}});
+
+
+__PACKAGE__->register_method({
+	name => 'migrate_vm', 
+	path => '{vmid}/migrate',
+	method => 'POST',
+	protected => 1,
+	proxyto => 'node',
+	description => "Migrate the container to another node. Creates a new migration task.",
+	permissions => {
 	check => ['perm', '/vms/{vmid}', [ 'VM.Migrate' ]],
-    },
-    parameters => {
-    	additionalProperties => 0,
+	},
+	parameters => {
+		additionalProperties => 0,
 	properties => {
-	    node => get_standard_option('pve-node'),
-	    vmid => get_standard_option('pve-vmid'),
-	    target => get_standard_option('pve-node', { description => "Target node." }),
-	    online => {
+		node => get_standard_option('pve-node'),
+		vmid => get_standard_option('pve-vmid'),
+		target => get_standard_option('pve-node', { description => "Target node." }),
+		online => {
 		type => 'boolean',
 		description => "Use online/live migration.",
 		optional => 1,
-	    },
+		},
 	},
-    },
-    returns => { 
+	},
+	returns => { 
 	type => 'string',
 	description => "the task ID.",
-    },
-    code => sub {
+	},
+	code => sub {
 	my ($param) = @_;
 
 	my $rpcenv = PVE::RPCEnvironment::get();
@@ -1442,13 +1539,13 @@ __PACKAGE__->register_method({
 
 	# try to detect errors early
 	if (PVE::OpenVZ::check_running($vmid)) {
-	    die "cant migrate running container without --online\n" 
+		die "cant migrate running container without --online\n" 
 		if !$param->{online};
 	}
 
 	if (&$vm_is_ha_managed($vmid) && $rpcenv->{type} ne 'ha') {
 
-	    my $hacmd = sub {
+		my $hacmd = sub {
 		my $upid = shift;
 
 		my $service = "pvevm:$vmid";
@@ -1460,22 +1557,22 @@ __PACKAGE__->register_method({
 		PVE::Tools::run_command($cmd);
 
 		return;
-	    };
+		};
 
-	    return $rpcenv->fork_worker('hamigrate', $vmid, $authuser, $hacmd);
+		return $rpcenv->fork_worker('hamigrate', $vmid, $authuser, $hacmd);
 
 	} else {
 
-	    my $realcmd = sub {
+		my $realcmd = sub {
 		my $upid = shift;
 
 		PVE::OpenVZMigrate->migrate($target, $targetip, $vmid, $param);
 
 		return;
-	    };
+		};
 
-	    return $rpcenv->fork_worker('vzmigrate', $vmid, $authuser, $realcmd);
+		return $rpcenv->fork_worker('vzmigrate', $vmid, $authuser, $realcmd);
 	}
-    }});
+	}});
 
 1;
